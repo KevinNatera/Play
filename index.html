@@ -1,100 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Encore — Time-Loop Boss Fight</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      color: #e0e0e0;
-      background: #000;
-    }
-    canvas {
-      cursor: none;
-    }
-    .info {
-      margin-top: 12px;
-      font-size: 11px;
-      color: #555577;
-      text-align: center;
-    }
-    .info span {
-      color: #ffdd57;
-    }
-    #audio-gate {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.95);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      cursor: pointer;
-      flex-direction: column;
-      font-family: monospace;
-   
-    #audio-gate h1 { color: #ffdd57; font-size: 48px; margin-bottom: 20px; }
-    #audio-gate p { color: #e0e0e0; font-size: 16px; }
-  </style>
+<meta charset="UTF-8">
+<title>Encore</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #000; color: #e0e0e0; font-family: monospace; }
+canvas { cursor: none; image-rendering: pixelated; }
+.info { margin-top: 12px; font-size: 11px; color: #555577; text-align: center; }
+.info span { color: #ffdd57; }
+#gate { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; cursor: pointer; }
+#gate h1 { color: #ffdd57; font-size: 48px; margin-bottom: 20px; }
+#gate p { color: #e0e0e0; font-size: 16px; }
+</style>
 </head>
 <body>
-  <div id="audio-gate">
-    <h1>ENCORE</h1>
-    <p>Click anywhere to begin</p>
-  </div>
-  <canvas id="game" width="480" height="320"></canvas>
-  <div class="info">
-    <span>ENCORE</span> — Each death, your ghost fights beside you.<br>
-    [1] Attack &nbsp; [2] Guard &nbsp; [3] Heal &nbsp; [SPACE] Timing
-  </div>
+<div id="gate"><h1>ENCORE</h1><p>Click anywhere to begin</p></div>
+<canvas id="game" width="480" height="320"></canvas>
+<div class="info"><span>ENCORE</span> — Eh death, your ghost fights beside you.<br>[1] Attack &nbsp; [2] Guard &nbsp; [3] Heal &nbsp; [SPACE] Timing</div>
+<script type="module">
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './src/constants.js';
+import { update, draw, handleKeyDown, handleKeyUp } from './src/engine.js';
+import { Audio } from './src/audio.js';
 
-  <script type="module">
-    import { CANVAS_WIDTH, CANVAS_HEIGHT } from './src/constants.js';
-    import { update, draw, handleKeyDown, handleKeyUp } from './src/engine.js';
-    import { Audio } from './src/audio.js';
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_HEIGHT;
+canvas.style.width = (CANVAS_WIDTH * 2) + 'px';
+canvas.style.height = (CANVAS_HEIGHT * 2) + 'px';
 
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
+const gate = document.getElementById('gate');
+gate.addEventListener('click', function() {
+  try { Audio.init(); Audio.startMusic(); } catch(e) { console.warn(e); }
+  gate.style.display = 'none';
+});
 
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
-    canvas.style.width = (CANVAS_WIDTH * 2) + 'px';
-    canvas.style.height = (CANVAS_HEIGHT * 2) + 'px';
-    canvas.style.imageRendering = 'pixelated';
+window.addEventListener('keydown', function(e) {
+  if (['1','2','3',' ','Enter'].indexOf(e.key) !== -1) e.preventDefault();
+  handleKeyDown(e);
+});
+window.addEventListener('keyup', handleKeyUp);
 
-    constate = document.getElementById('audio-gate');
-    gate.addEventListener('click', () => {
-      try {
-        if (Audio && Audio.init) Audio.init();
-        if (Audio && Audio.startMusic) Audio.startMusic();
-      } catch(e) { console.warn('Audio init failed:', e); }
-      gate.style.display = 'none';
-    }, { once: true });
-
-    window.addEventListener('keydown', (e) => {
-      if (['1','2','3',' ','Enter'].includes(e.key)) e.preventDefault();
-      handleKeyDown(e);
-    });
-    window.addEventListener('keyup', (e) => {
-      handleKeyUp(e);
-    });
-
-    function gameLoop() {
-      update();
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      draw(ctx);
-      requestAnimationFrame(gameLoop);
-    }
-
-    gameLoop();
-    console.log('Game loop started');
-  </script>
+function loop() {
+  update();
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  draw(ctx);
+  requestAnimationFrame(loop);
+}
+loop();
+console.log('Encore loaded.');
+</script>
 </body>
 </html>
