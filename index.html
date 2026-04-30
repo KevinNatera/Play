@@ -1,19 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><title>Encore | Loading...</title></head>
-<body style="background:#000; color:#0f0; display:flex; justify-content:center; align-items:center; height:100vh; font-family:monospace;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encore — Time-Loop Boss Fight</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #e0e0e0;
+    }
+    #game-container {
+      width: 960px;
+      height: 640px;
+    }
+    canvas {
+      cursor: none;
+    }
+    .info {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #555577;
+      text-align: center;
+    }
+    .info span {
+      color: #ffdd57;
+    }
+    #audio-gate {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    }
+    #audio-gate1 { color: #ffdd57; font-family: monospace; font-size: 48px; margin-bottom: 20px; }
+    #audio-gate p { color: #e0e0e0; font-family: monospace; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div id="audio-gate">
     <div style="text-align:center;">
-        <h1>ENCORE</h1>
-        <p>Status: Pipeline Active</p>
-        <button id="start-btn" style="padding:10px 20px; cursor:pointer;">CLICK TO START (AUDIO INIT)</button>
+      <h1>ENCORE</h1>
+      <p>Click anywhere to begin</p>
     </div>
-    <script type="module">
-        import { Audio } from './src/audio.js';
-        document.getElementById('start-btn').addEventListener('click', () => {
-            Audio.init();
-            Audio.startMusic();
-            console.log("Audio Initialized & Music Playing");
-        });
-    </script>
+  </div>
+  <div id="game-container">
+    <canvas id="game" width="480" height="320"></canvas>
+  </div>
+  <div class="info">
+    <span>ENCORE</span> — Each death, your ghost fights beside you.<br>
+    [1] Attack &nbsp; [2] Guard &nbsp; [3] Heal &nbsp; [SPACE] Timing
+  </div>
+
+  <script type="module">
+    import { CANVAS_WIDTH, CANVAS_HEIGHT } from './src/constants.js';
+    import { update, draw, handleKeyDown, handleKeyUp } from './src/engine.js';
+    import { Audio } from './src/audio.js';
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+    canvas.style.width = `${CANVAS_WIDTH *}px`;
+    canvas.style.height = `${CANVAS_HEIGHT * 2}px`;
+
+    document.getElementById('audio-gate').addEventListener('click', () => {
+      try {
+        if (Audio && Audio.init) Audio.init();
+        if (Audio && Audio.startMusic) Audio.startMusic();
+      } catch(e) { console.warn('Audio init failed:', e); }
+      document.getElementById('audio-gate').style.display = 'none';
+    }, { once: true });
+
+    window.addEventListener('keydown', (e) => {
+      e.preventDefault();
+      handleKeyDown(e);
+    });
+    window.addEventListener('keyup', (e) => {
+      handleKeyUp(e);
+    });
+
+    function gameLoop() {
+      update();
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      draw(ctx);
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
 </body>
 </html>
