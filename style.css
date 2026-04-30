@@ -1,0 +1,58 @@
+/* 
+   ROLE 3: VISUAL IDENTITY CORE
+   Style: Chrono Trigger / Final Fantasy 6 / Zelda 
+   Keywords: CRT, Scanlines, Pixelated, Cinematic 
+*/
+
+:root {
+    --bg-dark: #1a1c2c;
+    --crt-green: #98fb98;
+    --highlight: #f4f242;
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-dark);
+    overflow: hidden;
+    font-family: 'Courier New', monospace; /* Retro text style */
+}
+
+canvas {
+    /* 1. PIXEL PERFECTION: Crucial for crisp sprites */
+    image-rendering: pixelated; 
+    /* 2. ZELDA/CT SHARNESS: Keeps pixels from blurring */
+    image-rendering: crisp-edges;
+    
+    /* 3. CANVAS SIZING: Fixed pixel resolution, scaled via JS */
+    display: block;
+    margin: auto;
+    border: 10px solid #333;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+/* 
+   4. THE "FF6/CT" CRT FILTER
+   This adds the scanlines and slight vignette 
+   over the entire game view without touching JS
+*/
+#game-container {
+    position: relative;
+    width: 640px;
+    height: 480px;
+    overflow: hidden;
+    background: #000;
+}
+
+#game-container::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 2;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+}
