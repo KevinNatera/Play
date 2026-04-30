@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Encore | Loading...</title></head>
+<body style="background:#000; color:#0f0; display:flex; justify-content:center; align-items:center; height:100vh; font-family:monospace;">
+    <div style="text-align:center;">
+        <h1>ENCORE</h1>
+        <p>Status: Pipeline Active</p>
+        <button id="start-btn" style="padding:10px 20px; cursor:pointer;">CLICK TO START (AUDIO INIT)</button>
+    </div>
+    <script type="module">
+        import { Audio } from './src/audio.js';
+        document.getElementById('start-btn').addEventListener('click', () => {
+            Audio.init();
+            Audio.playMusic('music_battle');
+            console.log("Audio Initialized & Music Playing");
+        });
+    </script>
+</body>
+</html>
