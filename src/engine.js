@@ -41,6 +41,9 @@ const BOSS_Y = CANVAS_HEIGHT - 85;
 
 let state = createInitialState();
 let phaseTimer = 0;
+let loopStartAnimTimer = 0;
+let gameOverAnimTimer = 0;
+let lastDeathWasFinal = false;
 let telegraphAttack = null;
 let playerGuarding = false;
 let lastGuardTiming = 1.0;
@@ -89,6 +92,10 @@ function startLoop() {
 
   state.message = `LOOP ${loop} — FIGHT!`;
   state.messageTimer = 90;
+
+  loopStartAnimTimer = 120;
+  triggerFlash('#ffdd57', 0.5);
+  triggerShake(8);
 }
 
 // Resolve player action after timing
@@ -163,30 +170,66 @@ function resolvePlayerAction() {
     }
   }
 
+  if (action !== 'GUARD') {
+    lastGuardTiming = 1.0;
+  }
+
   state.pendingAction = null;
   state.timingResult = null;
 }
 
 // Ghost actions for this turn
 function resolveGhostActions() {
+  const lastRec = state.currentRecording[state.currentRecording.length - 1];
+  const playerGuardedThisTurn =
+    lastRec && lastRec.turnNumber === state.turn && lastRec.action === 'GUARD';
+  let ghostGuardSoundPlayed = false;
+
   for (const ghost of state.ghosts) {
     const action = ghost.actions.find(a => a.turnNumber === state.turn);
-    if (!action || action.action !== 'ATTACK') continue;
+    if (!action) continue;
 
-    // Ghosts only replay attacks, skip guard/heal
-    const ghostAtk = ghost.stats.atk;
-    const dmg = Math.floor(ghostAtk * action.timingQuality * GHOST_DAMAGE_MULT);
+    if (action.action === 'ATTACK') {
+      const ghostAtk = ghost.stats.atk;
+      const dmg = Math.floor(ghostAtk * action.timingQuality * GHOST_DAMAGE_MULT);
 
-    if (!state.boss.phaseShiftActive && dmg > 0) {
-      state.boss.hp -= dmg;
-      state.damageThisLoop += dmg;
+      if (!state.boss.phaseShiftActive && dmg > 0) {
+        state.boss.hp -= dmg;
+        state.damageThisLoop += dmg;
+        spawnFloatingText(
+          BOSS_X + (Math.random() - 0.5) * 30,
+          BOSS_Y - 40 - Math.random() * 20,
+          `-${dmg}`,
+          '#6688cc',
+          12
+        );
+      }
+    } else if (action.action === 'HEAL') {
+      const healAmt = Math.floor(HEAL_AMOUNT * action.timingQuality * GHOST_DAMAGE_MULT);
+      if (healAmt > 0) {
+        state.player.hp = Math.min(state.player.maxHp, state.player.hp + healAmt);
+        spawnFloatingText(
+          PLAYER_X + (Math.random() - 0.5) * 30,
+          PLAYER_Y - 40 - Math.random() * 20,
+          `+${healAmt}`,
+          '#88ccff',
+          12
+        );
+      }
+    } else if (action.action === 'GUARD') {
+      playerGuarding = true;
+      lastGuardTiming = Math.max(lastGuardTiming, action.timingQuality);
       spawnFloatingText(
-        BOSS_X + (Math.random() - 0.5) * 30,
-        BOSS_Y - 40 - Math.random() * 20,
-        `-${dmg}`,
-        '#6688cc',
+        PLAYER_X + (Math.random() - 0.5) * 30,
+        PLAYER_Y - 40 - Math.random() * 20,
+        'GUARD',
+        COLORS.guard,
         12
       );
+      if (!playerGuardedThisTurn && !ghostGuardSoundPlayed) {
+        playGuard();
+        ghostGuardSoundPlayed = true;
+      }
     }
   }
 }
@@ -201,6 +244,8 @@ export function update() {
 
   if (state.messageTimer > 0) state.messageTimer--;
   if (state.bossMessageTimer > 0) state.bossMessageTimer--;
+  if (loopStartAnimTimer > 0) loopStartAnimTimer--;
+  if (gameOverAnimTimer > 0) gameOverAnimTimer--;
 
   switch (state.phase) {
     case PHASE.TITLE:
@@ -304,15 +349,17 @@ export function update() {
           state.phase = PHASE.LOOP_END;
           phaseTimer = 0;
           playDeath();
-          triggerShake(15);
-          triggerFlash(COLORS.miss, 0.6);
+          triggerShake(20);
+          triggerFlash(COLORS.miss, 0.8);
+          gameOverAnimTimer = 150;
+          lastDeathWasFinal = (state.loop >= MAX_LOOPS);
 
           if (state.loop >= MAX_LOOPS) {
-            state.message = 'You fall... but you can try again.';
+            state.message = 'The Eternal endures... try again.';
           } else {
             state.message = 'You fall... but your echo remains.';
           }
-          state.messageTimer = 120;
+          state.messageTimer = 180;
           break;
         }
 
@@ -458,6 +505,71 @@ export function draw(ctx) {
 
   // Flash (not affected by shake)
   drawFlash(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  if (loopStartAnimTimer > 0) {
+    const progress = 1 - (loopStartAnimTimer / 120);
+    const scale = progress < 0.3 ? (progress / 0.3) * 1.5 : 1.5 - ((progress - 0.3) / 0.7) * 0.5;
+    const alpha = loopStartAnimTimer > 30 ? 1 : loopStartAnimTimer / 30;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, CANVAS_HEIGHT / 2 - 50, CANVAS_WIDTH, 100);
+
+    ctx.fillStyle = '#ffdd57';
+    ctx.font = `bold ${Math.floor(36 * scale)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    const text = `LOOP ${state.loop}`;
+    ctx.strokeText(text, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    ctx.fillText(text, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+
+    if (progress > 0.4) {
+      const subAlpha = Math.min(1, (progress - 0.4) / 0.3);
+      ctx.globalAlpha = alpha * subAlpha;
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 20px monospace';
+      ctx.strokeText('FIGHT!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30);
+      ctx.fillText('FIGHT!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30);
+    }
+    ctx.restore();
+  }
+
+  if (gameOverAnimTimer > 0) {
+    const progress = 1 - (gameOverAnimTimer / 150);
+    const fadeIn = Math.min(1, progress * 3);
+
+    ctx.save();
+    ctx.globalAlpha = fadeIn * 0.85;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const scale = progress < 0.4 ? (progress / 0.4) * 1.3 : 1.3 - ((progress - 0.4) / 0.6) * 0.3;
+
+    ctx.globalAlpha = fadeIn;
+    ctx.fillStyle = lastDeathWasFinal ? '#ff2244' : '#ff8844';
+    ctx.font = `bold ${Math.floor(40 * scale)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5;
+    const mainText = lastDeathWasFinal ? 'YOU DIED' : 'YOU FALL';
+    ctx.strokeText(mainText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 10);
+    ctx.fillText(mainText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 10);
+
+    if (progress > 0.5) {
+      const subAlpha = Math.min(1, (progress - 0.5) / 0.3);
+      ctx.globalAlpha = fadeIn * subAlpha;
+      ctx.fillStyle = '#cccccc';
+      ctx.font = 'bold 14px monospace';
+      const subText = lastDeathWasFinal
+        ? 'The loop closes...'
+        : `Echo recorded. Loop ${state.loop + 1} begins...`;
+      ctx.strokeText(subText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 25);
+      ctx.fillText(subText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 25);
+    }
+    ctx.restore();
+  }
 
   // Timing bar
   if (state.phase === PHASE.TIMING || state.timingResult) {
