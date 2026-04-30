@@ -166,3 +166,151 @@ Center of the screen.
 *   [ ] **50-60m:** Review. Is the Boss too small? **Make it bigger.** Is the Hero too dark? **Add white highlights.**
 
 **Role 3, go paint the world.**
+
+Here is the blueprint for constructing your characters for **"Encore"**. We are building this inside the `Canvas` context. You need two things: **The Data Structure** (how code reads the character) and **The Design Specs** (how you draw them).
+
+### 1. The Data Structure (The Skeleton)
+Paste this into your `src/config.js` file. This creates a "Sprite Sheet" map for your team. It defines every animation the Hero and Boss can do.
+
+```javascript
+// src/config.js
+
+export const SPRITE_DATA = {
+  HERO: {
+    width: 48,  // px
+    height: 48, // px
+    colors: {
+      body: "#3498db",    // Hero Blue
+      outline: "#0f0f1f", // Dark Void Black (FF6 style)
+      highlight: "#3498db" // Lighter Blue
+    },
+    animations: {
+      IDLE:   ["hero_idle_0", "hero_idle_1", "hero_idle_2", "hero_idle_3"], // 4 frames
+      ATTACK: ["hero_0", "hero_1", "hero_2", "hero_3", "hero_4"], // 5 frames
+      HIT:    ["hero_hit", "hero_hit_back"],
+      GUARD:  ["hero_guard"]
+    }
+  },
+  
+  BOSS: {
+    width: 128, // Boss is BIG (3x size)
+    height: 128,
+    colors: {
+      body: "#8e44ad",    // Void Purple
+      accent: "#2c3e50",  // Darker Purple
+      eye: "#e74c3c"      // Glowing Red Eye
+    },
+    animations: {
+      IDLE:   ["boss_idle_0", "boss_idle_1"], // Breathing
+      CHARGE: ["boss_charge_0"... "boss_charge_3"], // The Nuke windup
+      ATTACK: ["boss_swing_0"... "boss_swing_5"], // The Hit
+      DEAD:   ["boss_dead"]
+    }
+  }
+};
+```
+
+---
+
+### 2. The Character Class (The "Engine" Part)
+This is the class Role 1 or 2 needs to implement to actually **render** the character. It handles the "construction" logic (drawing frames and smoothing movement).
+
+```javascript
+// src/characters/Character.js
+
+export class Character {
+  constructor(type, x, y, spriteSheet) {
+    this.type = type; // 'HERO' or 'BOSS'
+    this.x = x;
+    this.y = y;
+    this.spriteSheet = spriteSheet;
+    
+    // Animation State
+    this.state = 'IDLE';
+    this.frameIndex = 0;
+    this.frameTimer = 0;
+    this.frameRate = 100; // ms per frame (10fps = pixel perfect feel)
+    this.scale = 1; // 1 = normal, 2 = boss
+    
+    // Combat State
+    this.shake = 0; // Screen shake for hits
+    this.flash = 0; // Hit flash timer
+  }
+
+  update(dt) {
+    // 1. Handle State Decay (recovering from hit)
+    if (this.state === 'HIT') {
+      this.flash = Math.max(0, this.flash - dt * 5); // Fade out flash
+      this.shake = Math.max(0, this.shake - dt * 20); 
+      if (this.flash <= 0) this.state = 'IDLE';
+    }
+    
+    // 2. Cycle Animation Frames
+    this.frameTimer += dt;
+    if (this.frameTimer > this.frameRate) {
+      this.frameTimer = 0;
+      let frames = this.spriteSheet[SPRITE_DATA[this.type].animations[this.state]];
+      this.frameIndex = (this.frameIndex + 1) % frames.length;
+    }
+  }
+
+  draw(ctx) {
+    // A. Apply Screen Shake (The "Encore" Impact)
+    ctx.save();
+    if (this.shake > 0) {
+      let rx = (Math.random() - 0.5) * this.shake;
+      let ry = (Math.random() - 0.5) * this.shake;
+      ctx.translate(rx, ry);
+    }
+
+    // B. Draw "Ghost" Layer (If this character is a recorded Ghost)
+    if (this.isGhost) {
+      ctx.globalAlpha = 0.4; // Ghostly transparency
+      ctx.fillStyle = "#00ffcc"; // Ghost Cyan Tint
+      // Simple solid block tint instead of sprite for performance/style
+    }
+
+    // C. Draw The Frame
+    // TODO: Here is where you load the image/rect for frames[frameIndex]
+    // ctx.drawImage(this.spriteSheet.getFrame(this.frameIndex), this.x, this.y, width*scale, height*scale);
+    
+    if (this.flash > 0) {
+        ctx.fillStyle = "#ffffff"; // Hit flash
+        // ctx.fillRect(x...);
+    }
+
+    ctx.restore();
+  }
+
+  // Helper: Take Damage
+  takeHit() {
+    this.state = 'HIT';
+    this.shake = 15; // Violent shake
+    this.flash = 1.0; // Flash white instantly
+    Audio.play('hit_player'); // Role 4 hook
+  }
+}
+```
+
+---
+
+### 3. The "Encore" Visual Design Guide (Role 3 Task)
+Since you are Role 3, you are building the **Visual Identity**. Here is how you construct the sprites in your art tool (Aseprite / Photoshop).
+
+**Rule: "Thick Lines & Flat Colors"**
+*   **The Hero:** Must be readable at a distance.
+    *   **Palette:** Standard FF6 Knight Blue.
+    *   **Line Art:** Thick Black (`#000`) outline. No anti-aliased edges (use the "Pixel Perfect" tool in Aseprite).
+    *   **Accessory:** Give him one bright white sword. It anchors the player's aim.
+*   **The Boss:** Must feel oppressive.
+    *   **Palette:** Deep purple and void black.
+    *   **Silhouette:** Round/Geometric (like a Star or a Face) to contrast the human shape of the hero.
+    *   **Feature:** One huge eye that scales up/down when it charges.
+*   **The Ghosts:** 
+    *   Do not draw new sprites. Construct them by taking the Hero sprite and applying a **"Gaussian Blur"** layer in your art tool, then overlaying a Cyan (`#00ffcc`) tint. Save them as PNGs with transparency.
+
+### Immediate Next Step for Role 3:
+**Create the "Sprite Map" JSON file.**
+You don't need the art file yet. You need the *map*. Create a file `src/assets/sprite_map.json` that lists `hero_idle_0` as `x,y,width,height` in your grid. This lets Role 1 load the image without knowing where the pixels are.
+
+Shall I write the **Sprite Map Generator Tool** for you so you don't have to measure pixels manually?
